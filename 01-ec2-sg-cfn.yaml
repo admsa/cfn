@@ -1,10 +1,19 @@
+Parameters:
+  KeyName:
+    Description: The EC2 Key Pair to allow SSH access to the instance
+    Type: 'AWS::EC2::KeyPair::KeyName'
+
+Conditions:
+  hasKeyPair:
+    !Not [!Equals [!Ref KeyName, ""]]
+
 Resources:
   cfnEC2:
     Type: AWS::EC2::Instance
     Properties:
       ImageId: ami-c481fad3
       InstanceType: t2.micro
-      KeyName: !Ref "AWS::NoValue" # Replace with working keypair
+      KeyName: !If [hasKeyPair, !Ref KeyName, !Ref "AWS::NoValue"]
       SecurityGroups:
         - !Ref cfnSecurityGroup
   cfnSecurityGroup:
@@ -30,4 +39,8 @@ Outputs:
       - cfnSecurityGroup
       - GroupId
     Description: EC2 Security GroupId
-# aws --region us-east-1 cloudformation create-stack --stack-name ec2-sg-cfn --template-body file://./01-ec2-sg-cfn.yaml
+
+# Sample commandline script
+
+# aws --region us-east-1 cloudformation create-stack --stack-name ec2-sg-cfn --template-body file://./01-ec2-sg-cfn.yaml \
+# --parameters ParameterKey=KeyName,ParameterValue=TestKey ParameterKey=SubnetIDs,ParameterValue=SubnetID1
