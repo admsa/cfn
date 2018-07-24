@@ -1,0 +1,8 @@
+Resources:
+  cfnEC2:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-c481fad3
+      InstanceType: t2.micro
+      KeyName: ACloudGuru
+# aws cloudformation create-stack --stack-name testcfn --template-body file://./01-ec2-cfn.yaml

@@ -1,0 +1,33 @@
+Resources:
+  cfnS3:
+    Type: AWS::S3::Bucket
+    Properties:
+      AccessControl: PublicRead
+      CorsConfiguration:
+        CorsRules:
+          - AllowedOrigins:
+              - "*"
+            AllowedHeaders:
+              - "Authorization"
+            AllowedMethods:
+              - GET
+            MaxAge: 3000
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: error.html
+Outputs:
+  WebsiteURL:
+    Value: !GetAtt
+      - cfnS3
+      - WebsiteURL
+    Description: Website URL hosted on S3
+  S3BucketSecureURL:
+    Value: !Join
+      - ''
+      - - 'https://'
+        - !GetAtt
+          - cfnS3
+          - DomainName
+    Description: Name of S3 bucket that holds website content
+
+# aws cloudformation create-stack --stack-name testcfn --template-body file://./03-s3-cfn.yaml
