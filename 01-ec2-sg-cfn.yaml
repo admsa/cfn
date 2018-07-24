@@ -4,7 +4,7 @@ Resources:
     Properties:
       ImageId: ami-c481fad3
       InstanceType: t2.micro
-      KeyName: !Ref "AWS::NoValue"
+      KeyName: !Ref "AWS::NoValue" # Replace with working keypair
       SecurityGroups:
         - !Ref cfnSecurityGroup
   cfnSecurityGroup:
@@ -30,4 +30,4 @@ Outputs:
       - cfnSecurityGroup
       - GroupId
     Description: EC2 Security GroupId
-# aws cloudformation create-stack --stack-name ec2-sg-cfn --template-body file://./01-ec2-sg-cfn.yaml
+# aws --region us-east-1 cloudformation create-stack --stack-name ec2-sg-cfn --template-body file://./01-ec2-sg-cfn.yaml

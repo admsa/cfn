@@ -15,6 +15,7 @@ Resources:
       WebsiteConfiguration:
         IndexDocument: index.html
         ErrorDocument: error.html
+
 Outputs:
   WebsiteURL:
     Value: !GetAtt cfnS3.WebsiteURL
@@ -35,4 +36,4 @@ Outputs:
     #      - cfnS3
     #      - DomainName
 
-# aws cloudformation create-stack --stack-name s3-cfn --template-body file://./02-s3-cfn.yaml
+# aws --region us-east-1 cloudformation create-stack --stack-name s3-cfn --template-body file://./02-s3-cfn.yaml
