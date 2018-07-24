@@ -7,13 +7,20 @@ Conditions:
   hasKeyPair:
     !Not [!Equals [!Ref KeyName, ""]]
 
+Mappings:
+  RegionMap:
+    us-east-1:
+      "AMI" : "ami-c481fad3"
+    us-east-2:
+      "AMI" : "ami-71ca9114"
+
 Resources:
   cfnEC2:
     Type: AWS::EC2::Instance
     Properties:
-      ImageId: ami-c481fad3
       InstanceType: t2.micro
-      KeyName: !If [hasKeyPair, !Ref KeyName, !Ref "AWS::NoValue"]
+      ImageId: !FindInMap [RegionMap, !Ref "AWS::Region", AMI]
+      KeyName: !Ref KeyName
       SecurityGroups:
         - !Ref cfnSecurityGroup
   cfnSecurityGroup:
@@ -33,6 +40,7 @@ Resources:
         FromPort: 80
         IpProtocol: tcp
         ToPort: 80
+
 Outputs:
   SecurityGroup:
     Value: !GetAtt
@@ -40,7 +48,9 @@ Outputs:
       - GroupId
     Description: EC2 Security GroupId
 
-# Sample commandline script
+# Sample conditions
+# KeyName: !If [hasKeyPair, !Ref KeyName, !Ref "AWS::NoValue"]
 
+# Sample commandline script
 # aws --region us-east-1 cloudformation create-stack --stack-name ec2-sg-cfn --template-body file://./01-ec2-sg-cfn.yaml \
 # --parameters ParameterKey=KeyName,ParameterValue=TestKey ParameterKey=SubnetIDs,ParameterValue=SubnetID1

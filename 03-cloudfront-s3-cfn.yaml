@@ -1,0 +1,82 @@
+Parameters:
+  OriginAccessIdentity:
+    Description: Cloudfront origin access identity
+    Type: String
+    MaxLength: 15
+
+Resources:
+  cfnS3:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      CorsConfiguration:
+        CorsRules:
+          - AllowedOrigins:
+              - "*"
+            AllowedHeaders:
+              - "Authorization"
+            AllowedMethods:
+              - GET
+            MaxAge: 3000
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: error.html
+
+  # Specifying the policies to make sure all files inside the Bucket are avaialble to CloudFront
+  cfnS3BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: cfnS3
+      PolicyDocument:
+        Statement:
+          - Sid: PublicReadGetObject
+            Effect: Allow
+            Principal:
+              AWS: !Join [" ", ["arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity", !Ref OriginAccessIdentity]]
+            Action:
+              - "s3:GetObject"
+            Resource: !Join ["", ["arn:aws:s3:::", !Ref cfnS3, "/*"]]
+
+  cfnDistribution:
+    Type: 'AWS::CloudFront::Distribution'
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        HttpVersion: 'http2'
+        DefaultRootObject: 'index.html'
+        Origins:
+          - DomainName: !GetAtt cfnS3.DomainName
+            Id: myS3Origin # An identifier for the origin which must be unique within the distribution
+
+            # Un-comment below and comment S3OriginConfig if you don't want to restrict bucket access to cloudfront only
+            #CustomOriginConfig:
+              #HTTPPort: 80
+              #HTTPSPort: 443
+              #OriginProtocolPolicy: https-only
+
+            S3OriginConfig: # Restrict the bucket access to cloudfront only
+              OriginAccessIdentity: !Join ["/", ["origin-access-identity", "cloudfront", !Ref OriginAccessIdentity]]
+        DefaultCacheBehavior:
+          TargetOriginId: myS3Origin # Identifier defined above
+          AllowedMethods: ['DELETE', 'GET', 'HEAD', 'OPTIONS', 'PATCH', 'POST', 'PUT']
+          ForwardedValues:
+            QueryString: 'true'
+            Cookies:
+              Forward: none
+          # The protocol that users can use to access the files in the origin. To allow HTTP use `allow-all`
+          ViewerProtocolPolicy: redirect-to-https
+        ViewerCertificate:
+          CloudFrontDefaultCertificate: 'true'
+        # We need to make sure path is served with index.html, since this is single page app
+        CustomErrorResponses:
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+
+Outputs:
+  DistributionURL:
+    Value: !Join ["", ["https://", !GetAtt ["cfnDistribution", "DomainName"]]]
+    Description: Distribution URL
+
+# aws --region us-east-1 cloudformation create-stack --stack-name cloudfront-s3-cfn --template-body file://./03-cloudfront-s3-cfn.yaml \
+# --parameters ParameterKey=OriginAccessIdentity,ParameterValue=Test
