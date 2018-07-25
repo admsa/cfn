@@ -4,6 +4,11 @@ Parameters:
     Type: String
     MaxLength: 15
 
+  OriginIdentifier:
+    Description: Origin identifier which must be unique within the distribution
+    Type: String
+    MaxLength: 30
+
 Resources:
   cfnS3:
     Type: 'AWS::S3::Bucket'
@@ -46,7 +51,7 @@ Resources:
         DefaultRootObject: 'index.html'
         Origins:
           - DomainName: !GetAtt cfnS3.DomainName
-            Id: myS3Origin # An identifier for the origin which must be unique within the distribution
+            Id: !Ref OriginIdentifier # An identifier for the origin which must be unique within the distribution
 
             # Un-comment below and comment S3OriginConfig if you don't want to restrict bucket access to cloudfront only
             #CustomOriginConfig:
@@ -57,7 +62,7 @@ Resources:
             S3OriginConfig: # Restrict the bucket access to cloudfront only
               OriginAccessIdentity: !Join ["/", ["origin-access-identity", "cloudfront", !Ref OriginAccessIdentity]]
         DefaultCacheBehavior:
-          TargetOriginId: myS3Origin # Identifier defined above
+          TargetOriginId: !Ref OriginIdentifier
           AllowedMethods: ['DELETE', 'GET', 'HEAD', 'OPTIONS', 'PATCH', 'POST', 'PUT']
           ForwardedValues:
             QueryString: 'true'
@@ -79,4 +84,4 @@ Outputs:
     Description: Distribution URL
 
 # aws --region us-east-1 cloudformation create-stack --stack-name cloudfront-s3-cfn --template-body file://./03-cloudfront-s3-cfn.yaml \
-# --parameters ParameterKey=OriginAccessIdentity,ParameterValue=Test
+# --parameters ParameterKey=OriginAccessIdentity,ParameterValue=Test ParameterKey=OriginIdentifier,ParameterValue=myS3Origin
