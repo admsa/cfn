@@ -3,10 +3,6 @@ Parameters:
     Description: The EC2 Key Pair to allow SSH access to the instance
     Type: 'AWS::EC2::KeyPair::KeyName'
 
-Conditions:
-  hasKeyPair:
-    !Not [!Equals [!Ref KeyName, ""]]
-
 Mappings:
   RegionMap:
     us-east-1:
@@ -26,10 +22,16 @@ Resources:
       UserData:
         "Fn::Base64":
           !Sub |
+
             #!/bin/bash
-            yum update -y aws-cfn-bootstrap # good practice - always do this.
+            yum update -y aws-cfn-bootstrap
+
+            # Install the files and packages from the metadata
             /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource cfnEC2 --configsets cfnInit --region ${AWS::Region}
+
+            # Update package
             yum -y update
+
     Metadata:
       AWS::CloudFormation::Init:
         configSets:
@@ -106,6 +108,7 @@ Outputs:
   PublicIP:
     Value: !GetAtt cfnEC2.PublicIp
     Description: Website public IP
+
 # Sample conditions
 # KeyName: !If [hasKeyPair, !Ref KeyName, !Ref "AWS::NoValue"]
 
