@@ -1,0 +1,172 @@
+Parameters:
+  KeyName:
+    Description: The EC2 Key Pair to allow SSH access to the instance
+    Type: 'AWS::EC2::KeyPair::KeyName'
+  VPCcidr:
+    Description:  Must be a valid CIDR range in the form x.x.x.x/16
+    Type: String
+    MinLength: 9
+    MaxLength: 18
+    Default: 10.20.0.0/16
+
+Mappings:
+  RegionMap:
+    us-east-1:
+      "AMI" : "ami-c481fad3"
+    us-east-2:
+      "AMI" : "ami-71ca9114"
+
+Resources:
+
+  ## ----------------------
+  cfnSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Open HTTP and SSH ports"
+      VpcId: vpc-a0adfddb #Need to update this to create own vpc with subnets
+      SecurityGroupIngress:
+      - CidrIp: 0.0.0.0/0
+        FromPort: 80
+        IpProtocol: tcp
+        ToPort: 80
+      - CidrIp: 0.0.0.0/0
+        FromPort: 22
+        IpProtocol: tcp
+        ToPort: 22
+
+  ## ----------------------
+  cfnElasticLoadBalancer:
+    Type: AWS::ElasticLoadBalancing::LoadBalancer
+    Properties:
+      CrossZone: "true"
+      AvailabilityZones: !GetAZs ""
+      LBCookieStickinessPolicy:
+        -
+          PolicyName: CookieBasedPolicy
+          CookieExpirationPeriod: 30
+      Listeners:
+        -
+          LoadBalancerPort: 80
+          InstancePort: 80
+          Protocol: HTTP
+          PolicyNames:
+            - CookieBasedPolicy
+      HealthCheck:
+        Target: "HTTP:80/"
+        HealthyThreshold: 2
+        UnhealthyThreshold: 5
+        Interval: 10
+        Timeout: 5
+      SecurityGroups:
+        - !Ref cfnSecurityGroup
+
+  ## ----------------------
+  cfnAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AvailabilityZones: !GetAZs ""
+      LaunchConfigurationName: !Ref cfnLaunchConfiguration
+      MinSize: 1
+      DesiredCapacity: 1 # !Ref DesiredCapacity
+      MaxSize: 1
+      LoadBalancerNames:
+        - !Ref cfnElasticLoadBalancer
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT5M
+        Count: 1 # !Ref DesiredCapacity
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        #MinInstancesInService: 1 #Uncomment this if you want to leave atleast 1 instance running on update
+        MaxBatchSize: 1
+        PauseTime: PT5M
+        WaitOnResourceSignals: "true"
+
+  ## ----------------------
+  cfnLaunchConfiguration:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      InstanceType: t2.micro
+      ImageId: !FindInMap [RegionMap, !Ref "AWS::Region", AMI]
+      KeyName: !Ref KeyName
+      SecurityGroups:
+        - !Ref cfnSecurityGroup
+      UserData:
+        "Fn::Base64":
+          !Sub |
+
+            #!/bin/bash
+            yum update -y aws-cfn-bootstrap
+
+            # Install the files and packages from the metadata
+            /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource cfnLaunchConfiguration --configsets cfnInit --region ${AWS::Region}
+
+            # Updating packages will cause signal issues. Probably move this after sending signal
+            #yum -y update
+
+            # Signal the status from cfn-init
+            /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource cfnAutoScalingGroup --region ${AWS::Region}
+
+    Metadata:
+      AWS::CloudFormation::Init:
+        configSets:
+          cfnInit:
+            - "configure_init"
+            - "install_packages"
+        configure_init:
+          files:
+            /etc/cfn/hooks.d/cfn-auto-reloader.conf:
+              content: !Sub |
+                [cfn-auto-reloader-hook]
+                triggers=post.update
+                path=Resources.cfnLaunchConfiguration.Metadata.AWS::CloudFormation::Init
+                action=/opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource cfnLaunchConfiguration --configsets cfnInit --region ${AWS::Region}
+              mode: "000400"
+              owner: root
+              group: root
+            /etc/cfn/cfn-hup.conf:
+              content: !Sub |
+                [main]
+                stack=${AWS::StackId}
+                region=${AWS::Region}
+                verbose=true
+                interval=5
+              mode: "000400"
+              owner: root
+              group: root
+          services:
+            sysvinit:
+              cfn-hup:
+                enabled: "true"
+                ensureRunning: "true"
+                files:
+                - "/etc/cfn/cfn-hup.conf"
+                - "/etc/cfn/hooks.d/cfn-auto-reloader.conf"
+        install_packages:
+          packages:
+            yum:
+              httpd: []
+              php: []
+              php-mysql: []
+          services:
+            sysvinit:
+              httpd:
+                enabled: "true"
+                ensureRunning: "true"
+          files:
+            /var/www/html/index.html:
+              content: "Application Content"
+
+Outputs:
+  SecurityGroup:
+    Value: !GetAtt cfnSecurityGroup.GroupId
+  AutoScalingLaunchConfigName:
+    Value: !Ref cfnLaunchConfiguration
+  DNSName:
+    Value: !Join ["", ["http://", !GetAtt ["cfnElasticLoadBalancer", "DNSName"]]]
+  ELBStackName:
+    Value: !Ref cfnElasticLoadBalancer
+
+# Sample commandline script
+# aws --region us-east-1 cloudformation create-stack --stack-name ec2-auto-scale-load-balancer-cfn --template-body file://./06-ec2-auto-scale-load-balancer-cfn.yaml \
+# --parameters ParameterKey=KeyName,ParameterValue=TestKey
