@@ -1,7 +1,11 @@
-from troposphere import Template, Parameter, Ref, Output
+from troposphere import Template, Parameter, Ref, Output, GetAtt, Sub
 from troposphere.s3 import Bucket, VersioningConfiguration
 from troposphere.sns import Subscription, Topic
 from troposphere.iam import Role, Policy
+from troposphere.codepipeline import (
+    Pipeline, Stages, Actions, ActionTypeId, OutputArtifacts, InputArtifacts,
+    ArtifactStore, DisableInboundStageTransitions)
+
 
 ### Basic code pipeline template ###
 def YAMLTemplate():
@@ -114,12 +118,12 @@ def YAMLTemplate():
   ))
 
   #------------Template Resources------------#
-  s3BucketResource = template.add_resource(Bucket(
+  ArtifactStoreBucket = template.add_resource(Bucket(
     "ArtifactStoreBucket",
     VersioningConfiguration=VersioningConfiguration(Status="Enabled")
   ))
 
-  snsTopicResource = template.add_resource(Topic(
+  CodePipelineSNSTopic = template.add_resource(Topic(
     "CodePipelineSNSTopic",
     Subscription=[
       Subscription(Protocol="email", Endpoint=Ref(Email))
@@ -191,8 +195,157 @@ def YAMLTemplate():
     }
   ))
 
+  cfnPipeline = template.add_resource(Pipeline(
+    "Pipeline",
+    ArtifactStore=ArtifactStore(
+      Type="S3",
+      Location=Ref(ArtifactStoreBucket)
+    ),
+    DisableInboundStageTransitions=[],
+    RoleArn=GetAtt(PipelineRole, "Arn"),
+    Stages=[
+      Stages(
+        Name="S3Source",
+        Actions=[
+          Actions(
+            Name="TemplateSource",
+            ActionTypeId=ActionTypeId(
+              Category="Source",
+              Provider="S3",
+              Owner="AWS",
+              Version="1"
+            ),
+            Configuration={
+              "S3Bucket": Ref(S3Bucket),
+              "S3ObjectKey": Ref(SourceS3Key)
+            },
+            OutputArtifacts=[
+              OutputArtifacts(
+                Name="TemplateSource"
+              )
+            ],
+            RunOrder="1"
+          )
+        ]
+      ),
+      Stages(
+        Name="TestStage",
+        Actions=[
+          Actions(
+            Name="CreateStack",
+            ActionTypeId=ActionTypeId(
+              Category="Deploy",
+              Provider="CloudFormation",
+              Owner="AWS",
+              Version="1"
+            ),
+            InputArtifacts=[
+              InputArtifacts(
+                Name="TemplateSource"
+              )
+            ],
+            Configuration={
+              "ActionMode": "REPLACE_ON_FAILURE",
+              "RoleArn": GetAtt(CFNRole, "Arn"),
+              "StackName": Ref(TestStackName),
+              "TemplateConfiguration": Sub("TemplateSource::${TestStackConfig}"),
+              "TemplatePath": Sub("TemplateSource::${TemplateFileName}")
+            },
+            RunOrder="1"
+          ),
+          Actions(
+            Name="ApproveTestStack",
+            ActionTypeId=ActionTypeId(
+              Category="Approval",
+              Provider="Manual",
+              Owner="AWS",
+              Version="1"
+            ),
+            Configuration={
+              "NotificationArn": Ref(CodePipelineSNSTopic),
+              "CustomData": Sub("Do you want to create a change set against the production stack and delete the ${TestStackName} stack?")
+            },
+            RunOrder="2"
+          ),
+          Actions(
+            Name="DeleteTestStack",
+            ActionTypeId=ActionTypeId(
+              Category="Deploy",
+              Provider="CloudFormation",
+              Owner="AWS",
+              Version="1"
+            ),
+            Configuration={
+              "ActionMode": "DELETE_ONLY",
+              "RoleArn": GetAtt(CFNRole, "Arn"),
+              "StackName": Ref(TestStackName)
+            },
+            RunOrder="3"
+          )
+        ]
+      ),
+      Stages(
+        Name="ProdStage",
+        Actions=[
+          Actions(
+            Name="CreateChangeSet",
+            ActionTypeId=ActionTypeId(
+              Category="Deploy",
+              Provider="CloudFormation",
+              Owner="AWS",
+              Version="1"
+            ),
+            InputArtifacts=[
+              InputArtifacts(
+                Name="TemplateSource"
+              )
+            ],
+            Configuration={
+              "ActionMode": "CHANGE_SET_REPLACE",
+              "RoleArn": GetAtt(CFNRole, "Arn"),
+              "StackName": Ref(ProdStackName),
+              "TemplateConfiguration": Sub("TemplateSource::${ProdStackConfig}"),
+              "TemplatePath": Sub("TemplateSource::${TemplateFileName}")
+            },
+            RunOrder="1"
+          ),
+          Actions(
+            Name="ApproveChangeSet",
+            ActionTypeId=ActionTypeId(
+              Category="Approval",
+              Provider="Manual",
+              Owner="AWS",
+              Version="1"
+            ),
+            Configuration={
+              "NotificationArn": Ref(CodePipelineSNSTopic),
+              "CustomData": Sub("A new change set was created for the ${ProdStackName} stack. Do you want to implement the changes?")
+            },
+            RunOrder="2"
+          ),
+          Actions(
+            Name="ExecuteChangeSet",
+            ActionTypeId=ActionTypeId(
+              Category="Deploy",
+              Provider="CloudFormation",
+              Owner="AWS",
+              Version="1"
+            ),
+            Configuration={
+              "ActionMode": "CHANGE_SET_EXECUTE",
+              "RoleArn": GetAtt(CFNRole, "Arn"),
+              "StackName": Ref(ProdStackName),
+              "ChangeSetName": Ref(ChangeSetName)
+            },
+            RunOrder="3"
+          )
+        ]
+      )
+    ]
+  ))
+
   return {
-    'templateBody'     : template.to_yaml()
+    'templateBody': template.to_yaml()
   }
 
 
