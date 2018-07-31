@@ -65,50 +65,43 @@ def YAMLTemplate():
   SourceS3Key = template.add_parameter(Parameter(
     "SourceS3Key",
     Type="String",
-    Default="wordpress-single-instance.zip",
     Description="The file name of the source artifact, such as myfolder/myartifact.zip"
   ))
 
   TemplateFileName = template.add_parameter(Parameter(
     "TemplateFileName",
     Type="String",
-    Default="wordpress-single-instance.yaml",
-    Description="The file name of the WordPress template"
+    Description="The file name of the template"
   ))
 
   TestStackName = template.add_parameter(Parameter(
     "TestStackName",
     Type="String",
-    Default="Test-MyWordPressSite",
-    Description="A name for the test WordPress stack"
+    Description="A name for the test stack"
   ))
 
   TestStackConfig = template.add_parameter(Parameter(
     "TestStackConfig",
     Type="String",
-    Default="test-stack-configuration.json",
-    Description="The configuration file name for the test WordPress stack"
+    Description="The configuration file name for the test stack"
   ))
 
   ProdStackName = template.add_parameter(Parameter(
     "ProdStackName",
     Type="String",
-    Default="Prod-MyWordPressSite",
-    Description="A name for the production WordPress stack"
+    Description="A name for the production stack"
   ))
 
   ProdStackConfig = template.add_parameter(Parameter(
     "ProdStackConfig",
     Type="String",
-    Default="prod-stack-configuration.json",
-    Description="The configuration file name for the production WordPress stack"
+    Description="The configuration file name for the production stack"
   ))
 
   ChangeSetName = template.add_parameter(Parameter(
     "ChangeSetName",
     Type="String",
-    Default="UpdatePreview-MyWordPressSite",
-    Description="A name for the production WordPress stack change set"
+    Description="A name for the production stack change set"
   ))
 
   Email = template.add_parameter(Parameter(
@@ -344,8 +337,6 @@ def YAMLTemplate():
     ]
   ))
 
-  return {
-    'templateBody': template.to_yaml()
-  }
+  return template.to_yaml()
 
 
