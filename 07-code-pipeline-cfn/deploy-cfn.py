@@ -1,6 +1,5 @@
-from src import BasicPipeline, SharedS3, Helpers, SimpleWebApp
-import json
-import os
+from src import Helpers
+import json, os
 
 ### Config file ###
 def config():
@@ -10,49 +9,24 @@ def config():
 ### Zip the config files ###
 def zipConfigs(config):
 
-  testStackConfig = {
-    "fileName"   : "test-stack-configuration.json",
-    "content": json.dumps(config['TestStackConfiguration'])
-  }
+  base_dir = "./templates/ec2-instance"
+  files = ["test-stack-configuration.json", "prod-stack-configuration.json", "simple-web-app.yaml"]
 
-  prodStackConfig = {
-    "fileName"   : "prod-stack-configuration.json",
-    "content": json.dumps(config['ProdStackConfiguration'])
-  }
+  # Save to temporary directory
+  for file in files:
+    Helpers.SaveText(config["temp_directory"], file, Helpers.ReadFileContents(os.path.join(base_dir, file)))
 
-  Helpers.SaveText(config["TempDirectory"], testStackConfig["fileName"], testStackConfig["content"])
-  Helpers.SaveText(config["TempDirectory"], prodStackConfig["fileName"], prodStackConfig["content"])
+  # Zip the files
+  Helpers.zip(config["temp_directory"], config["zip_name"], files)
 
-  Helpers.zip(
-    config["TempDirectory"],
-    config["WebServerZip"],
-    [prodStackConfig["fileName"], testStackConfig["fileName"]]
-  )
+  # Removed individual files
+  for file in files:
+    os.remove(os.path.join(config["temp_directory"], file))
 
-  os.remove(os.path.join(config["TempDirectory"], testStackConfig["fileName"]))
-  os.remove(os.path.join(config["TempDirectory"], prodStackConfig["fileName"]))
-
-  return os.path.join(config["TempDirectory"], config["WebServerZip"])
+  return os.path.join(config["temp_directory"], config["zip_name"])
 
 ### When file is run directly. Not imported ###
 if __name__ == "__main__":
-
-  print(SimpleWebApp.SimpleWebApp())
-
-  #sharedS3      = SharedS3.YAMLTemplate()
-  #config = config()
-  #zipPath = zipConfigs(config)
-
-  #print(zipPath)
-
-  """
-  sharedS3      = SharedS3.YAMLTemplate()
-  stackName     = sharedS3['bucketName']
-  s3TemplateBody= sharedS3['templateBody']
-  sharedS3Stack = Helpers.CreateStack(stackName, s3TemplateBody)
-
-  if sharedS3Stack is None:
-    print(sharedS3Stack)
-  """
-  #tpl = BasicPipeline.YAMLTemplate()
-  #print(tpl['templateBody'])
+  config = config()
+  zipPath = zipConfigs(config)
+  print(zipPath)

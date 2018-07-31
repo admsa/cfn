@@ -1,0 +1,110 @@
+Parameters:
+  KeyName:
+    Description: The EC2 Key Pair to allow SSH access to the instance
+    Type: 'AWS::EC2::KeyPair::KeyName'
+
+Mappings:
+  RegionMap:
+    us-east-1:
+      "AMI" : "ami-c481fad3"
+    us-east-2:
+      "AMI" : "ami-71ca9114"
+
+Resources:
+  cfnEC2:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      ImageId: !FindInMap [RegionMap, !Ref "AWS::Region", AMI]
+      KeyName: !Ref KeyName
+      SecurityGroups:
+        - !Ref cfnSecurityGroup
+      UserData:
+        "Fn::Base64":
+          !Sub |
+
+            #!/bin/bash
+            yum update -y aws-cfn-bootstrap
+
+            # Install the files and packages from the metadata
+            /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource cfnEC2 --configsets cfnInit --region ${AWS::Region}
+
+            # Update package
+            yum -y update
+
+    Metadata:
+      AWS::CloudFormation::Init:
+        configSets:
+          cfnInit:
+            - "configure_init"
+            - "install_packages"
+        configure_init:
+          files:
+            /etc/cfn/hooks.d/cfn-auto-reloader.conf:
+              content: !Sub |
+                [cfn-auto-reloader-hook]
+                triggers=post.update
+                path=Resources.cfnEC2.Metadata.AWS::CloudFormation::Init
+                action=/opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource cfnEC2 --configsets cfnInit --region ${AWS::Region}
+              mode: "000400"
+              owner: root
+              group: root
+            /etc/cfn/cfn-hup.conf:
+              content: !Sub |
+                [main]
+                stack=${AWS::StackId}
+                region=${AWS::Region}
+                verbose=true
+                interval=5
+              mode: "000400"
+              owner: root
+              group: root
+          services:
+            sysvinit:
+              cfn-hup:
+                enabled: "true"
+                ensureRunning: "true"
+                files:
+                - "/etc/cfn/cfn-hup.conf"
+                - "/etc/cfn/hooks.d/cfn-auto-reloader.conf"
+        install_packages:
+          packages:
+            yum:
+              httpd: []
+              php: []
+              php-mysql: []
+          services:
+            sysvinit:
+              httpd:
+                enabled: "true"
+                ensureRunning: "true"
+          files:
+            /var/www/html/index.html:
+              content: "Application Content"
+
+  cfnSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Open HTTP and SSH ports"
+      SecurityGroupIngress:
+      - CidrIp: 0.0.0.0/0
+        FromPort: 80
+        IpProtocol: tcp
+        ToPort: 80
+      - CidrIp: 0.0.0.0/0
+        FromPort: 22
+        IpProtocol: tcp
+        ToPort: 22
+
+Outputs:
+  SecurityGroup:
+    Value: !GetAtt
+      - cfnSecurityGroup
+      - GroupId
+    Description: EC2 Security GroupId
+  WebsiteURL:
+    Value: !Join ["", ["http://", !GetAtt ["cfnEC2", "PublicDnsName"]]]
+    Description: Application URL
+  PublicIP:
+    Value: !GetAtt cfnEC2.PublicIp
+    Description: Website public IP

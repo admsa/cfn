@@ -1,0 +1,10 @@
+Resources:
+  cfnSharedS3Bucket:
+    DeletionPolicy: Delete
+    Type: AWS::S3::Bucket
+    Properties:
+      VersioningConfiguration:
+        Status: Enabled
+Outputs:
+  cfnSharedS3:
+    Value: !Ref 'cfnSharedS3Bucket'
