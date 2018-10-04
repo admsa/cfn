@@ -1,5 +1,7 @@
 #!/bin/bash
 
+#./deploy.sh create-stack --parent-template file://./cfn-parent.yaml --child-template file://./cfn-child.yaml --bucket-name cf-templates-uahyo2oen0xe-us-east-1 --region us-east-1
+
 AWS_REGION=""
 S3_BUCKET=""
 PARENT_TEMPLATE=""
