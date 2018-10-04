@@ -19,8 +19,8 @@ function execute() {
     aws --region ${AWS_REGION:-us-east-1} s3 cp "${template/$base/$replace}" s3://${S3_BUCKET}/ --acl public-read
   done
 
-  echo "Creating stack..."
-  aws --region ${AWS_REGION:-us-east-1} cloudformation create-stack --stack-name ${STACK_NAME:-serverless-stack} --template-body ${PARENT_TEMPLATE} --capabilities CAPABILITY_IAM
+  echo "Processing CloudFormation stack..."
+  aws --region ${AWS_REGION:-us-east-1} cloudformation ${CFN_ACTION} --stack-name ${STACK_NAME:-serverless-stack} --template-body ${PARENT_TEMPLATE} --capabilities CAPABILITY_IAM
 
 }
 
@@ -47,15 +47,15 @@ EXAMPLES:
 
   Creating CloudFormation stack:
     $ deploy create-stack --stack-name sample-stack
-    --parent-template file://./cfn-parent.yaml
-    --child-template file://./cfn-child.yaml
-    --bucket-name sample-bucket
+      --parent-template file://./cfn-parent.yaml
+      --child-template file://./cfn-child.yaml
+      --bucket-name sample-bucket
 
   Updating CloudFormation stack:
     $ deploy update-stack --stack-name sample-stack
-    --parent-template file://./cfn-parent.yaml
-    --child-template file://./cfn-child.yaml
-    --bucket-name sample-bucket
+      --parent-template file://./cfn-parent.yaml
+      --child-template file://./cfn-child.yaml
+      --bucket-name sample-bucket
 EOF
 }
 
@@ -110,8 +110,9 @@ case "${1}" in
   options $@
   break
   ;;
-  -h|--help)
-  help_menu
+  help)
+  help
+  break
   ;;
   *)
   echo "${1} is not a valid flag, try running: ${0} --help"
