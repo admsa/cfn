@@ -1,4 +1,8 @@
 Resources:
+  SharedS3:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://s3.amazonaws.com/{TEMPLATE_BUCKET}/shared-s3-cfn.yaml
   ChildStack1:
     Type: AWS::CloudFormation::Stack
     Properties:
@@ -7,9 +11,14 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: https://s3.amazonaws.com/{TEMPLATE_BUCKET}/child2-cfn.yaml
+    DependsOn: SharedS3
 Outputs:
   ChildStack1BucketName:
     Value: !GetAtt ChildStack1.Outputs.BucketName
   ChildStack2BucketName:
     Value: !GetAtt ChildStack2.Outputs.BucketName
+  SharedS3BucketName:
+    Value: !Ref SharedS3
+  ChildStack2SharedS3BucketName:
+    Value: !GetAtt ChildStack2.Outputs.SharedBucketName
 

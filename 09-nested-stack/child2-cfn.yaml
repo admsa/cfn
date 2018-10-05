@@ -6,3 +6,5 @@ Resources:
 Outputs:
   BucketName:
     Value: !GetAtt ChildOfChildStack2.Outputs.BucketName
+  SharedBucketName:
+    Value: !ImportValue shared-s3-bucket

@@ -6,4 +6,6 @@ Resources:
 Outputs:
   BucketName:
     Value: !Ref S3Bucket
-
+    # export will cause an error if this template is reused. Export name will be exported twice
+    Export:
+      Name: shared-s3-bucket
