@@ -1,8 +1,8 @@
 Resources:
-  S3Bucket:
-    Type: AWS::S3::Bucket
+  ChildOfChildStack2:
+    Type: AWS::CloudFormation::Stack
     Properties:
-      AccessControl: PublicRead
+      TemplateURL: https://s3.amazonaws.com/{TEMPLATE_BUCKET}/child-cfn/child-cfn.yaml
 Outputs:
   BucketName:
-    Value: !Ref S3Bucket
+    Value: !GetAtt ChildOfChildStack2.Outputs.BucketName
