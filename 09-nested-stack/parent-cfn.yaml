@@ -1,0 +1,15 @@
+Resources:
+  Stack1:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://s3.amazonaws.com/{TEMPLATE_BUCKET}/child1-cfn.yaml
+  Stack2:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://s3.amazonaws.com/{TEMPLATE_BUCKET}/child2-cfn.yaml
+Outputs:
+  StacRef:
+    Value: !Ref Stack1
+  OutputFromNestedStack:
+    Value: !GetAtt Stack1.Outputs.BucketName
+

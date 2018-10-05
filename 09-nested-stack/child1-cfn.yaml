@@ -1,0 +1,12 @@
+Resources:
+  Stack1:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://s3.amazonaws.com/{TEMPLATE_BUCKET}/child-cfn/child-cfn.yaml
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      AccessControl: PublicRead
+Outputs:
+  BucketName:
+    Value: !Ref S3Bucket

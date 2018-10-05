@@ -1,32 +1,47 @@
 #!/bin/bash
 
-#./deploy.sh create-stack --parent-template file://./cfn-parent.yaml --child-template file://./cfn-child.yaml --bucket-name cf-templates-uahyo2oen0xe-us-east-1 --region us-east-1
+#./deploy.sh create-stack
+    #--parent-template parent-cfn.yaml
+    #--bucket-name cf-templates-uahyo2oen0xe-us-east-1
+    #--region us-east-1
 
 AWS_REGION=""
 S3_BUCKET=""
 PARENT_TEMPLATE=""
-CHILD_TEMPLATE=""
 STACK_NAME=""
 CFN_ACTION=""
 
-function execute() {
-  echo "Uploading template to S3 Bucket..."
-  base="file://"
-  replace=""
+TEMP_DIR="templates"
+PATTERN="*cfn.yaml"
 
-  for template in $PARENT_TEMPLATE $CHILD_TEMPLATE
-  do
-    aws --region ${AWS_REGION:-us-east-1} s3 cp "${template/$base/$replace}" s3://${S3_BUCKET}/ --acl public-read
+function execute() {
+  mkdir $TEMP_DIR
+
+  find . -name "${PATTERN}"|while read fname; do
+    cp --parents $fname $TEMP_DIR
   done
 
-  echo "Processing CloudFormation stack..."
-  aws --region ${AWS_REGION:-us-east-1} cloudformation ${CFN_ACTION} --stack-name ${STACK_NAME:-serverless-stack} --template-body ${PARENT_TEMPLATE} --capabilities CAPABILITY_IAM
+  echo "Uploading template to S3 Bucket..."
 
+  find $TEMP_DIR -name "${PATTERN}"|while read fname; do
+    sed -i -e "s/{TEMPLATE_BUCKET}/${S3_BUCKET}/g" $fname
+    #aws --region ${AWS_REGION:-us-east-1} s3 cp $(readlink -f "${fname}") s3://${S3_BUCKET}/ --acl public-read --recursive
+  done
+
+  aws --region ${AWS_REGION:-us-east-1} s3 cp $TEMP_DIR s3://${S3_BUCKET}/ --acl public-read --recursive
+
+  echo "Processing CloudFormation stack..."
+  aws --region ${AWS_REGION:-us-east-1} cloudformation ${CFN_ACTION} \
+      --stack-name ${STACK_NAME:-serverless-stack} \
+      --template-url https://s3.amazonaws.com/${S3_BUCKET}/${PARENT_TEMPLATE} \
+      --capabilities CAPABILITY_IAM
+
+  rm -rf $TEMP_DIR
 }
 
 function help() {
 cat << EOF
-Usage: ${0} (-c | -u)
+Usage: ${0} create-stack|update-stack (-s|-p|-c|-b|-r)
 
 COMMANDS:
   create-stack              Create CloudFormation stack
@@ -36,7 +51,6 @@ COMMANDS:
 OPTIONS:
   -s|--stack-name           CloudFormation stack name
   -p|--parent-template      Parent template body
-  -c|--child-template       Child template body
   -b|--bucket-name          S3 bucket name
   -r|--region               AWS region
 
@@ -47,14 +61,12 @@ EXAMPLES:
 
   Creating CloudFormation stack:
     $ deploy create-stack --stack-name sample-stack
-      --parent-template file://./cfn-parent.yaml
-      --child-template file://./cfn-child.yaml
+      --parent-template file://./parent-cfn.yaml
       --bucket-name sample-bucket
 
   Updating CloudFormation stack:
     $ deploy update-stack --stack-name sample-stack
-      --parent-template file://./cfn-parent.yaml
-      --child-template file://./cfn-child.yaml
+      --parent-template file://./parent-cfn.yaml
       --bucket-name sample-bucket
 EOF
 }
@@ -70,10 +82,6 @@ function options() {
     ;;
     -p|--parent-template)
     PARENT_TEMPLATE=${2}
-    shift
-    ;;
-    -c|--child-template)
-    CHILD_TEMPLATE=${2}
     shift
     ;;
     -b|--bucket-name)
