@@ -1,8 +1,8 @@
 #!/bin/bash
 
-#./deploy.sh create-stack
-    #--parent-template parent-cfn.yaml
-    #--bucket-name cf-templates-uahyo2oen0xe-us-east-1
+#./deploy.sh create-stack \
+    #--parent-template parent-cfn.yaml \
+    #--bucket-name cf-templates-uahyo2oen0xe-us-east-1 \
     #--region us-east-1
 
 AWS_REGION=""
@@ -60,13 +60,13 @@ EXAMPLES:
     $ deploy help
 
   Creating CloudFormation stack:
-    $ deploy create-stack --stack-name sample-stack
-      --parent-template file://./parent-cfn.yaml
+    $ deploy create-stack --stack-name sample-stack \
+      --parent-template parent-cfn.yaml \
       --bucket-name sample-bucket
 
   Updating CloudFormation stack:
-    $ deploy update-stack --stack-name sample-stack
-      --parent-template file://./parent-cfn.yaml
+    $ deploy update-stack --stack-name sample-stack \
+      --parent-template parent-cfn.yaml \
       --bucket-name sample-bucket
 EOF
 }
