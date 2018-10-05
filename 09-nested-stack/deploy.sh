@@ -41,7 +41,7 @@ function execute() {
 
 function help() {
 cat << EOF
-Usage: ${0} create-stack|update-stack (-s|-p|-c|-b|-r)
+Usage: ${0} create-stack|update-stack (-s|-p|-b|-r)
 
 COMMANDS:
   create-stack              Create CloudFormation stack
@@ -60,13 +60,13 @@ EXAMPLES:
     $ deploy help
 
   Creating CloudFormation stack:
-    $ deploy create-stack --stack-name sample-stack \
-      --parent-template parent-cfn.yaml \
+    $ deploy create-stack --stack-name sample-stack
+      --parent-template parent-cfn.yaml
       --bucket-name sample-bucket
 
   Updating CloudFormation stack:
-    $ deploy update-stack --stack-name sample-stack \
-      --parent-template parent-cfn.yaml \
+    $ deploy update-stack --stack-name sample-stack
+      --parent-template parent-cfn.yaml
       --bucket-name sample-bucket
 EOF
 }
